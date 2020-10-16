@@ -1,0 +1,7 @@
+name: bepi
+channels:
+  - defaults
+dependencies:
+  - python=3
+  - lxml
+  - python-oauth2
