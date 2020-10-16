@@ -1,5 +1,5 @@
 #!/usr/bin/python
-"""enlink2job
+"""everjop_relinker
 
 Mark S. Bentley (mark@lunartech.org), 2020
 
