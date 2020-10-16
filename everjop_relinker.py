@@ -43,7 +43,7 @@ log = logging.getLogger(__name__)
 
 class Evernote():
 
-    def __init__(self, notebook=None, config_file='enlink2jop.ini'):
+    def __init__(self, notebook=None, config_file='everjop_relinker.ini'):
 
         self.notebook = None
 
@@ -155,7 +155,7 @@ class Joplin:
 
     default_url = 'http://localhost:41184/'
 
-    def __init__(self, url=default_url, config_file='enlink2jop.ini'):
+    def __init__(self, url=default_url, config_file='everjop_relinker.ini'):
 
 
         try:
