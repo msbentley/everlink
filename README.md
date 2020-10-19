@@ -1,10 +1,10 @@
-# everjop_relinker
+# everlink
 
 ## Introduction
-A python  utility using the Evernote and Joplin APIs to re-link notes broken after import of .enex files to Joplin.
+Everlink is a python utility designed to help the transition from Evernote to another service whilst retaining full note-link functionality. To do this is queries the Evernote API and retrieves note meta-data. These meta-data can either be dumped to disk, or used in conjuction with supported note taking packages to fix the broken links. Currently only Joplin is supported.
 
 ### Background
-The export format provided by Evernote is an XML file (one per notebook) containing all note data, meta-data and attachments. This is rather complete, _but_ it misses one vital piece of information - the unique identifier (GUID) of each note. Unfortunately this is the mechanism used by Evernote to internall link notes together. Without this, notes imported into other software (here, Joplin) become useless.
+The export format provided by Evernote is an XML file (one per notebook) containing all note data, meta-data and attachments. This is rather complete, _but_ it misses one vital piece of information - the unique identifier (GUID) of each note. Unfortunately this is the mechanism used by Evernote to internally link notes together. Without this, notes imported into other software (e.g. Joplin) become useless.
 
 ### Approach
 This utility uses the Evernote API (via developer token, rather than OAuth - feel free to make a pull request if you want to implement that!) to request key meta-data from each notebook in turn:
@@ -28,12 +28,13 @@ The Joplin API (accessed using the API token provided under the web clipper sett
  1. If you have modified the creation date after import, this will not work
  2. It is tested primarily with HTML imported notes, since this is my primary use case
  3. It needs the python3 Evernote SDK (see Installation)
+ 4. Linked/shared notebooks are currently not supported, until I can figure out the correct API calls!
  
  ## Installation
  
  ### Dependencies
  
- everjop_relinker needs the following dependencies:
+ everlink needs the following dependencies:
  - python 3
  - lxml
  - python-oauth2 (this is a dependency of the Evernote SDK, although it is not used here)
@@ -45,6 +46,7 @@ The Joplin API (accessed using the API token provided under the web clipper sett
  
  ### everjop_relinker
  Clone the Git repository
+ 
  **TODO: complete this when packaging is done**
  
  ### Configuration
@@ -73,16 +75,16 @@ Note that the Joplin URL and port can also be given - these typically do not cha
 
 everjop_relinker can be executed without any additional parameters:
 ```bash
-$ everjop_relinker.py
+$ everlink.py
 ```
 In this case all Evernote notebooks will be used to build the list of note meta-data, and the configuration file will be assumed to be called `everjop_relinker.ini` and in the same directory as the source.
 To specify the path to the configuration file, use:
 ```bash
-$ everjop_relinker.py --config /path/to/config.ini
+$ everlink.py --config /path/to/config.ini
 ```
 To specify only a single Evernote notebook to process:
 ```bash
-$ everjop_relinker.py --notebook MyPersonalNotes
+$ everlink.py --notebook MyPersonalNotes
 ```
 
 

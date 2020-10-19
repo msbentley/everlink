@@ -1,5 +1,5 @@
 #!/usr/bin/python
-"""everjop_relinker
+"""everlink.py
 
 Mark S. Bentley (mark@lunartech.org), 2020
 
@@ -43,7 +43,7 @@ log = logging.getLogger(__name__)
 
 class Evernote():
 
-    def __init__(self, notebook=None, config_file='everjop_relinker.ini'):
+    def __init__(self, notebook=None, config_file='everlink.ini'):
 
         self.notebook = None
 
@@ -59,13 +59,13 @@ class Evernote():
     def user_login(self):
 
         # create a client pointing to the operational EN system
-        client = EvernoteClient(token=self.config['token'], sandbox=False)
+        self.client = EvernoteClient(token=self.config['token'], sandbox=False)
 
         # get the userStore and log the username
-        self.userStore = client.get_user_store()
+        self.userStore = self.client.get_user_store()
 
         # get the noteStore
-        self.noteStore = client.get_note_store()
+        self.noteStore = self.client.get_note_store()
         
 
     def get_user(self):
@@ -78,6 +78,10 @@ class Evernote():
 
     def get_notebooks(self):
         return self.noteStore.listNotebooks()
+
+
+    def get_shared_notebooks(self):
+        return self.noteStore.listLinkedNotebooks()
 
 
     def list_notebooks(self):
@@ -100,7 +104,7 @@ class Evernote():
                 log.warning('Evernote notebook {:s} not found'.format(notebook_name))
 
 
-    def get_notes(self):
+    def get_notes(self, shared=True):
 
         if self.notebook is None:
             log.debug('no notebook set - using ALL notebooks')
@@ -109,12 +113,49 @@ class Evernote():
             notebooks = [self.notebook]
 
         spec = NotesMetadataResultSpec(includeTitle=True, includeCreated=True)
+
         notes = []
+
+        if shared:
+
+            from evernote.api.client import Store
+
+            shared = self.get_shared_notebooks()
+            for nb in shared:
+
+                shareKey = nb.shareKey
+                note_store_uri = nb.noteStoreUrl
+                store = Store(self.client.token, self.noteStore.Client, note_store_uri)
+                auth_result = store.authenticateToSharedNotebook(shareKey,self.client.token)
+                share_token = auth_result.authenticationToken
+                filter = NoteFilter(order=NoteSortOrder.CREATED, notebookGuid=nb.guid)
+                notelist = store.findNotesMetadata(filter, 0, 0, spec)
+                sdsdf
+                # result_list = shared_note_store.findNotesMetadata(share_token, updated_filter, offset, max_notes, result_spec)
+
+
+
+
+
+
+                # store = self.client.get_shared_note_store(nb)
+
+
+                filter = NoteFilter(order=NoteSortOrder.CREATED, notebookGuid=nb.guid)
+                notelist = store.findNotesMetadata(filter, 0, 0, spec)
+                totalnotes = notelist.totalNotes
+                num_queries = math.ceil(totalnotes / maxnotes)
+
+                for query in range(num_queries):
+                    note_batch = store.findNotesMetadata(filter, query*maxnotes, maxnotes, spec)
+                    for item in note_batch.notes:
+                        notes.append(item)
+
+                log.info('retrieved {:d} notes from shared notebook {:s}'.format(totalnotes, nb.name))
 
         for nb in notebooks:
 
             filter = NoteFilter(order=NoteSortOrder.CREATED, notebookGuid=nb.guid)
-
             # find out how many notes are in this notebook
             notelist = self.noteStore.findNotesMetadata(filter, 0, 0, spec)
             totalnotes = notelist.totalNotes
@@ -133,10 +174,36 @@ class Evernote():
             # # check we have retrieved everything
             # if len(notes) != totalnotes:
             #     log.warning('could not retrieve all notes ({:d}/{:d}'.format(len(notes), totalnotes))
-
             log.info('retrieved {:d} notes from notebook {:s}'.format(totalnotes, nb.name))
 
         return notes
+
+
+    def getAllSharedNotes(self):
+        """Returns a list of all notes shared BY the current user"""
+
+        from evernote.edam.notestore import NoteStore
+        from evernote.edam.error.ttypes import EDAMNotFoundException, EDAMSystemException, EDAMUserException
+        maxCount = 500
+        noteFilter = NoteStore.NoteFilter()
+        noteFilter.words = "sharedate:*"
+        sharedNotes = []
+        offset = 0
+        while len(sharedNotes) < maxCount:
+            try:
+                noteList = self.noteStore.findNotes(self.client.token, noteFilter, offset, 50)
+                sharedNotes += noteList.notes
+            except (EDAMNotFoundException, EDAMSystemException, EDAMUserException) as e:
+                print("Error getting shared notes:")
+                print(type(e), e)
+                return None
+
+            if len(sharedNotes) % 50 != 0:
+                ## We've retrieved all of the notes 
+                break
+            else:
+                offset += 50
+        return sharedNotes[:maxCount]
 
 
 
@@ -155,7 +222,7 @@ class Joplin:
 
     default_url = 'http://localhost:41184/'
 
-    def __init__(self, url=default_url, config_file='everjop_relinker.ini'):
+    def __init__(self, url=default_url, config_file='everlink.ini'):
 
 
         try:
@@ -309,7 +376,7 @@ def main():
         else:
             nb = Evernote(notebook=None)
 
-    en_notes = nb.get_notes()
+    en_notes = nb.get_notes(shared=True)
     
     if en_notes is None:
         log.error('no notes returned')
