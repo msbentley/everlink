@@ -44,7 +44,7 @@ The Joplin API (accessed using the API token provided under the web clipper sett
  `conda create --file environment.yml`
  The last should be downloaded/checked out and installed in the environment with `python setup.py install`.
  
- ### everjop_relinker
+ ### everlink
  Clone the Git repository
  
  **TODO: complete this when packaging is done**
@@ -73,11 +73,11 @@ Note that the Joplin URL and port can also be given - these typically do not cha
 
 ## Usage
 
-everjop_relinker can be executed without any additional parameters:
+everlink can be executed without any additional parameters:
 ```bash
 $ everlink.py
 ```
-In this case all Evernote notebooks will be used to build the list of note meta-data, and the configuration file will be assumed to be called `everjop_relinker.ini` and in the same directory as the source.
+In this case all Evernote notebooks will be used to build the list of note meta-data, and the configuration file will be assumed to be called `everlink.ini` and in the same directory as the source.
 To specify the path to the configuration file, use:
 ```bash
 $ everlink.py --config /path/to/config.ini
@@ -85,6 +85,10 @@ $ everlink.py --config /path/to/config.ini
 To specify only a single Evernote notebook to process:
 ```bash
 $ everlink.py --notebook MyPersonalNotes
+```
+Finally, debugging can be switched on with the `debug` flag:
+```bash
+$ everlink.py --debug True
 ```
 
 
