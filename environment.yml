@@ -1,4 +1,4 @@
-name: bepi
+name: everlink
 channels:
   - defaults
 dependencies:
