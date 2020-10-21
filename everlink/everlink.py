@@ -21,6 +21,7 @@ import math
 import csv
 import sys
 import json
+import os
 import configparser
 from math import ceil
 from lxml import html
@@ -236,6 +237,7 @@ class Joplin:
         else:
             self.url = default_url
 
+
     def ping(self):
         
         try:
@@ -297,12 +299,13 @@ class Joplin:
         note = r.json()
         return note
 
-    def update_note(self, note_id, field, data):
+    def update_note(self, note_id, data):
 
         params = {'token':self.token}
 
         try:
-            r = requests.put(self._url('/notes/{:s}'.format(note_id)), data=json.dumps({field: data}), params=params)
+            r = requests.put(self._url('/notes/{:s}'.format(note_id)), data=json.dumps(data), params=params)
+            asdfsdf
             r.raise_for_status()
         except requests.exceptions.HTTPError as e:
             log.error(e)
@@ -336,10 +339,36 @@ class Joplin:
         return results
 
 
+    def query_dbase(self, query):
+        
+        import sqlite3
+
+        try:
+            dbase = os.path.join(self.config['db_path'], 'database.sqlite')
+        except KeyError as e:
+            log.error('cannot find db_path in the [Joplin] section of the configuration file')
+            return
+
+        try:
+            conn = sqlite3.connect(dbase)
+            c = conn.cursor()
+            c.execute(query)
+        except sqlite3.Error as e:
+            log.error(e)
+            return None
+
+        result = c.fetchall()
+        conn.close()
+
+        return result
+
+
+
+
+
 def load_config(config_file):
     """Load the configuration file containing, at minimum,
     the username and password for BOA authentication"""
-
 
     config = configparser.ConfigParser()
 
@@ -375,8 +404,10 @@ def main():
             nb = Evernote(notebook=args.notebook)
         else:
             nb = Evernote(notebook=None)
-    if bool(args.debug)==True:
+    if args.debug:
         log.setLevel(logging.DEBUG)
+    else:
+        log.setLevel(logging.INFO)
 
     en_notes = nb.get_notes(shared=False)
     
@@ -403,7 +434,7 @@ def main():
     log.info('Joplin has {:d} notes with Evernote internal links'.format(len(enex_notes)))
 
     # get a list of ALL notes
-    jop_notes = j.get_notes(fields='id,title,created_time,markup_language')
+    jop_notes = j.get_notes(fields='id,title,created_time,markup_language,user_updated_time')
 
     # this is the meat of the work - loop through each note, extract the link details
     # (which could be in html or markdown), and then:
@@ -475,7 +506,7 @@ def main():
                 body = link_regex.sub('[\\1](:\/{:s})'.format(n['id']), body)
 
                 # write this back to Joplin
-                j.update_note(note['id'], field='body', data=body)
+                j.update_note(note['id'], data={'body': body, 'user_updated_time': n['user_updated_time']})
                 num_updated += 1
 
 
@@ -530,7 +561,7 @@ def main():
                     link.set('href', 'joplin://{:s}'.format(note_id))
                     link.set('title', n['title'])
                     # write this back to Joplin
-                    j.update_note(note['id'], field='body', data=html.tostring(body_html).decode())
+                    j.update_note(note['id'], {'body': html.tostring(body_html).decode(), 'user_updated_time': n['user_updated_time']})
                     num_updated += 1
                 else:
                     log.debug('link is NOT an evernote link ({:s})'.format(href))
