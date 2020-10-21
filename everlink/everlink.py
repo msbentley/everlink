@@ -38,7 +38,6 @@ import logging
 logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s',
                     level=logging.INFO, stream=sys.stdout, datefmt='%Y-%m-%d %H:%M:%S')
 log = logging.getLogger(__name__)
-# log.setLevel(logging.DEBUG)
 
 
 class Evernote():
@@ -362,6 +361,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--notebook', type=str, help='name of the Evernote notebook to query. If none is given, all notebooks are used')
     parser.add_argument('--config', type=str, help='path to the config file')
+    parser.add_argument('--debug', type=str, help='boolean flag to enable or disable debug logging')
     args = parser.parse_args()
 
     # use the Evernote API to get the notes from the notebook
@@ -375,8 +375,10 @@ def main():
             nb = Evernote(notebook=args.notebook)
         else:
             nb = Evernote(notebook=None)
+    if bool(args.debug)==True:
+        log.setLevel(logging.DEBUG)
 
-    en_notes = nb.get_notes(shared=True)
+    en_notes = nb.get_notes(shared=False)
     
     if en_notes is None:
         log.error('no notes returned')
@@ -417,8 +419,10 @@ def main():
         # get note body
         body = j.get_note(note['id'], fields='body')['body']
         # sometimes the search returns hints which are not exact matches
-        if body.find('evernote://') == -1:
-            continue
+        #if body.find("'evernote://'") == -1:
+        #    print('note skipped since evernote:// not found in body')
+        #    ssdfsdf
+        #    continue
         # check if the links are converted md or plain html
         if note['markup_language'] == 1: # markdown
             # regular expression to match Markdown links with Evernote prefixes
@@ -463,7 +467,7 @@ def main():
                         num_links += 1
                         break
                 if note_id is None:
-                    log.warning('no match could for note with title {:s} and creation time {:s}'.format(match.title, match.created))
+                    log.warning('no match could for note with title {:s} and creation time {:d}'.format(match.title, match.created))
                     num_bad_links += 1
                     continue
                 # now re-write the link
@@ -478,18 +482,21 @@ def main():
 
         elif note['markup_language'] == 2:
 
-            if not body.startswith('<en-note>'):
+            if not body.startswith('<en-note'):
                 log.warning('HTML note does not start with <en-note>, processing anyway')
             
             body_html = html.fromstring(body)
 
             # find all links (<a>)
-            links = body_html.findall('a')
+            links = body_html.xpath('//a')
+            log.debug('note {:s} has {:d} links'.format(note['title'], len(links)))
 
             # loop through all links in the note body
-            for link in links:
+            for link in links
                 # check if the href points to an evernote:// link
                 href = link.get('href')
+                if href is None:
+                    continue
                 if href.startswith('evernote://'):
                     # extract the GUID
                     guid = href.split('/')[6]
@@ -516,7 +523,7 @@ def main():
                             num_links += 1
                             break
                     if note_id is None:
-                        log.warning('no match could for note with title {:s} and creation time {:s}'.format(match.title, match.created))
+                        log.warning('no match could for note with title {:s} and creation time {:d}'.format(match.title, match.created))
                         num_bad_links += 1
                         continue
                     # now re-write the link
@@ -525,6 +532,8 @@ def main():
                     # write this back to Joplin
                     j.update_note(note['id'], field='body', data=html.tostring(body_html).decode())
                     num_updated += 1
+                else:
+                    log.debug('link is NOT an evernote link ({:s})'.format(href))
         else:
             log.error('unknown note format')
             sys.exit()
