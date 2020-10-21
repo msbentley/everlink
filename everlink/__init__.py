@@ -6,7 +6,7 @@ __init__.py
 """
 __all__ = ['everlink']
 
-from bepicolombo import *
+from everlink import *
 
 # Set up the root logger
 
