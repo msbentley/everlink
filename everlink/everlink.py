@@ -492,7 +492,7 @@ def main():
             log.debug('note {:s} has {:d} links'.format(note['title'], len(links)))
 
             # loop through all links in the note body
-            for link in links
+            for link in links:
                 # check if the href points to an evernote:// link
                 href = link.get('href')
                 if href is None:
