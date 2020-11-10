@@ -224,7 +224,6 @@ class Joplin:
 
     def __init__(self, url=default_url, config_file='everlink.ini'):
 
-
         try:
             self.config = load_config(config_file)['joplin']
         except KeyError as e:
@@ -267,16 +266,29 @@ class Joplin:
         if fields is not None:
             params.update({'fields': fields})
 
-        try:
-            r = requests.get(self._url('/notes'), params=params)
-            r.raise_for_status()
-        except requests.exceptions.HTTPError as e:
-            log.error(e)
-            return False
-        except requests.exceptions.RequestException as e: 
-            log.error(e)
-            return False
-        notes = r.json()
+        notes = []
+        done = False
+
+        while not done:
+
+            try:
+                r = requests.get(self._url('/notes'), params=params)
+                r.raise_for_status()
+            except requests.exceptions.HTTPError as e:
+                log.error(e)
+                return False
+            except requests.exceptions.RequestException as e: 
+                log.error(e)
+                return False
+            result = r.json()
+
+            if 'cursor' in result.keys():
+                params.update({'cursor': result['cursor']})
+            else:
+                done = True
+
+            notes.extend(result['items'])
+
         return notes
 
 
@@ -299,13 +311,13 @@ class Joplin:
         note = r.json()
         return note
 
+
     def update_note(self, note_id, data):
 
         params = {'token':self.token}
 
         try:
             r = requests.put(self._url('/notes/{:s}'.format(note_id)), data=json.dumps(data), params=params)
-            asdfsdf
             r.raise_for_status()
         except requests.exceptions.HTTPError as e:
             log.error(e)
@@ -324,19 +336,31 @@ class Joplin:
         if fields is not None:
             params.update({'fields':fields})
 
-        try:
-            r = requests.get(self._url('/search'), params=params)
-            r.raise_for_status()
-        except requests.exceptions.HTTPError as e:
-            log.error(e)
-            return False
-        except requests.exceptions.RequestException as e: 
-            log.error(e)
-            return False
-        
-        results = r.json()
+        notes = []
+        done = False
 
-        return results
+        while not done:
+
+            try:
+                r = requests.get(self._url('/search'), params=params)
+                r.raise_for_status()
+            except requests.exceptions.HTTPError as e:
+                log.error(e)
+                return False
+            except requests.exceptions.RequestException as e: 
+                log.error(e)
+                return False
+
+            result = r.json()
+
+            if 'cursor' in result.keys():
+                params.update({'cursor': result['cursor']})
+            else:
+                done = True
+
+            notes.extend(result['items'])
+
+        return notes
 
 
     def query_dbase(self, query):
@@ -363,7 +387,53 @@ class Joplin:
         return result
 
 
+class Trilium:
 
+    def __init__(self, config_file='everlink.ini'):
+
+        try:
+            self.config = load_config(config_file)['trilium']
+        except KeyError as e:
+            log.error('cannot find [trilium] section in the configuration dictionary')
+            self.config = None
+
+
+    def query_dbase(self, query):
+        
+        import sqlite3
+
+        try:
+            dbase = os.path.join(self.config['db_path'], 'document.db')
+        except KeyError as e:
+            log.error('cannot find db_path in the [Joplin] section of the configuration file')
+            return
+
+        try:
+            conn = sqlite3.connect(dbase)
+            conn.row_factory = sqlite3.Row
+            c = conn.cursor()
+            c.execute(query)
+        except sqlite3.Error as e:
+            log.error(e)
+            return None
+
+        result = c.fetchall()
+        result = [dict(r) for r in result]
+        conn.close()
+
+        return result
+
+
+    def show_tables(self):
+
+        tables = self.query_dbase("select name from sqlite_master where type='table' and name not like 'sqlite_%'")
+        return tables
+
+
+    def search_notes(self, search_string):
+
+        notes = self.query_dbase("select noteId from note_contents where content like '%{:s}%'".format(search_string))
+        return notes
 
 
 def load_config(config_file):
@@ -481,9 +551,12 @@ def main():
                 match = [note for note in en_notes if note.guid==guid]
                 if len(match) == 0:
                     log.warning('could not find note with GUID: {:s}'.format(guid))
+                    num_bad_links += 1
                     continue
                 elif len(match) > 1:
                     log.warning('found more than one note with GUID: {:s}'.format(guid))
+                    num_bad_links += 1
+                    continue
                 else:
                     match = match[0]
                     log.debug('GUID {:s} corresponds to Evernote note {:s}'.format(guid, match.title))
@@ -513,10 +586,9 @@ def main():
 
         elif note['markup_language'] == 2:
 
-            if not body.startswith('<en-note'):
-                log.warning('HTML note does not start with <en-note>, processing anyway')
-            
             body_html = html.fromstring(body)
+            if body_html.tag != 'en-note':
+                log.warning('HTML note ({:s}) is not in an en-note tag, processing anyway'.format(note['title']))
 
             # find all links (<a>)
             links = body_html.xpath('//a')
@@ -537,9 +609,12 @@ def main():
                     match = [note for note in en_notes if note.guid==guid]
                     if len(match) == 0:
                         log.warning('could not find note with GUID: {:s}'.format(guid))
+                        num_bad_links += 1
                         continue
                     elif len(match) > 1:
                         log.warning('found more than one note with GUID: {:s}'.format(guid))
+                        num_bad_links += 1
+                        continue
                     else:
                         match = match[0]
                         log.debug('GUID {:s} corresponds to Evernote note {:s}'.format(guid, match.title))
