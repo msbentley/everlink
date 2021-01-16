@@ -262,7 +262,8 @@ class Joplin:
         
     def get_notes(self, fields=None):
 
-        params = {'token':self.token}
+        page = 1
+        params = {'token':self.token, 'page': page}
         if fields is not None:
             params.update({'fields': fields})
 
@@ -270,7 +271,6 @@ class Joplin:
         done = False
 
         while not done:
-
             try:
                 r = requests.get(self._url('/notes'), params=params)
                 r.raise_for_status()
@@ -282,8 +282,9 @@ class Joplin:
                 return False
             result = r.json()
 
-            if 'cursor' in result.keys():
-                params.update({'cursor': result['cursor']})
+            if result['has_more']:
+                page += 1
+                params.update({'page': page})
             else:
                 done = True
 
@@ -332,10 +333,10 @@ class Joplin:
 
     def search_notes(self, query, fields=None):
 
+        page = 1
         params = {'query':query, 'token':self.token}
         if fields is not None:
-            params.update({'fields':fields})
-
+            params.update({'fields':fields, 'page':page})
         notes = []
         done = False
 
@@ -353,8 +354,9 @@ class Joplin:
 
             result = r.json()
 
-            if 'cursor' in result.keys():
-                params.update({'cursor': result['cursor']})
+            if result['has_more']:
+                page += 1
+                params.update({'page': page})
             else:
                 done = True
 
