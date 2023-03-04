@@ -578,7 +578,7 @@ def main():
                     continue
                 # now re-write the link
                 # re-write body with regex
-                body = body.replace(link[1],':/{:s})'.format(n['id']))
+                body = body.replace(link[1],':/{:s}'.format(n['id']))
 
                 # write this back to Joplin
                 j.update_note(note['id'], data={'body': body, 'user_updated_time': n['user_updated_time']})
